@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bloom_splash_base">#FFF5F1</color>
+    <color name="bloom_splash_status">#F0DDF4</color>
+    <color name="ic_launcher_background">#FBD0DA</color>
+</resources>
