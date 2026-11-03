@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bloom/features/home/bloom_home.dart';
+import 'package:bloom/features/auth/auth_service.dart';
 import 'package:bloom/app/bloom_splash.dart';
 import 'package:bloom/app/theme.dart';
 
@@ -104,6 +105,8 @@ void main() {
 
   testWidgets('Bloom splash shows the full animation before reaching Home',
       (tester) async {
+    AuthService.instance.currentUser.value =
+        AuthService.instance.currentUser.value.copyWith(isLoggedIn: true);
     await tester.pumpWidget(const MaterialApp(home: BloomSplash()));
     await tester.pump();
     expect(find.text('your cycle, your way'), findsOneWidget);
@@ -115,6 +118,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Home'), findsOneWidget);
+  });
+
+  testWidgets('Bloom splash opens proper login page when user is not logged in',
+      (tester) async {
+    AuthService.instance.currentUser.value =
+        AuthService.instance.currentUser.value.copyWith(isLoggedIn: false);
+    await tester.pumpWidget(const MaterialApp(home: BloomSplash()));
+    await tester.pump();
+    expect(find.text('your cycle, your way'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 4350));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('Username'), findsOneWidget);
   });
 
   testWidgets('Bloom for Partners reveals share code and care guidance',

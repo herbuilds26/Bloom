@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -75,6 +75,7 @@ class _BloomHomeState extends State<BloomHome> {
 
   // Profile settings state
   String userName = 'Bloom User';
+  String userHandle = 'bloom_user';
   String userEmail = 'bloom.user@bloom.app';
   int userAge = 24;
   double userHeightCm = 165.0;
@@ -116,6 +117,7 @@ class _BloomHomeState extends State<BloomHome> {
 
   void _syncUserProfile(UserProfile user) {
     userName = user.name;
+    userHandle = user.username.isNotEmpty ? user.username : 'bloom_user';
     userEmail = user.email;
     userAge = user.age;
     userHeightCm = user.heightCm;
@@ -4243,7 +4245,7 @@ class _BloomHomeState extends State<BloomHome> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      userEmail,
+                      '@$userHandle · $userEmail',
                       style: TextStyle(
                         fontSize: 11,
                         color: BloomTheme.textSecondary,
@@ -4441,7 +4443,7 @@ class _BloomHomeState extends State<BloomHome> {
                             ),
                           ),
                           Text(
-                            userEmail,
+                            '@$userHandle · $userEmail',
                             style: TextStyle(
                               fontSize: 12,
                               color: BloomTheme.textSecondary,
@@ -4560,7 +4562,7 @@ class _BloomHomeState extends State<BloomHome> {
                               foregroundColor: Colors.white,
                             ),
                             onPressed: () {
-                              if (newPassCtrl.text.length >= 6) {
+                              if (newPassCtrl.text.length >= 4) {
                                 setModalState(() {
                                   isChangingPass = false;
                                   statusMessage = 'Password updated securely';

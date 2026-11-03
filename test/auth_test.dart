@@ -8,8 +8,8 @@ void main() {
   setUp(() async {
     // Reset to default user before each test
     await AuthService.instance.register(
+      username: 'bloom_user',
       name: 'Bloom User',
-      email: 'bloom.user@bloom.app',
       password: 'bloom123',
     );
   });
@@ -18,17 +18,17 @@ void main() {
     test('Default user is logged in with expected baseline credentials', () {
       final user = AuthService.instance.currentUser.value;
       expect(user.name, 'Bloom User');
-      expect(user.email, 'bloom.user@bloom.app');
+      expect(user.username, 'bloom_user');
       expect(user.isLoggedIn, isTrue);
     });
 
-    test('Login updates currentUser and succeeds with valid password', () async {
+    test('Login updates currentUser and succeeds with 4-digit password', () async {
       final success = await AuthService.instance.login(
-        email: 'maya@bloom.app',
-        password: 'securepassword123',
+        username: 'maya',
+        password: '1234',
       );
       expect(success, isTrue);
-      expect(AuthService.instance.currentUser.value.email, 'maya@bloom.app');
+      expect(AuthService.instance.currentUser.value.username, 'maya');
       expect(AuthService.instance.currentUser.value.name, 'Maya');
       expect(AuthService.instance.isLoggedIn, isTrue);
     });
@@ -38,11 +38,11 @@ void main() {
       expect(AuthService.instance.isLoggedIn, isFalse);
     });
 
-    test('Register creates new profile with full credentials and cycle settings', () async {
+    test('Register creates new profile with username and 4-digit credentials', () async {
       await AuthService.instance.register(
+        username: 'chloe_d',
         name: 'Chloe',
-        email: 'chloe@bloom.app',
-        password: 'chloepassword',
+        password: '5678',
         avatarId: 'cherry',
         age: 26,
         heightCm: 168.0,
@@ -54,7 +54,7 @@ void main() {
 
       final user = AuthService.instance.currentUser.value;
       expect(user.name, 'Chloe');
-      expect(user.email, 'chloe@bloom.app');
+      expect(user.username, 'chloe_d');
       expect(user.avatarId, 'cherry');
       expect(user.age, 26);
       expect(user.heightCm, 168.0);
@@ -78,7 +78,7 @@ void main() {
       expect(find.text('welcome back, darling'), findsOneWidget);
       expect(find.text('Sign In'), findsOneWidget);
       expect(find.text('Create Profile'), findsOneWidget);
-      expect(find.text('Email address'), findsOneWidget);
+      expect(find.text('Username'), findsOneWidget);
       expect(find.text('Password'), findsOneWidget);
       expect(find.text('Remember me'), findsOneWidget);
       expect(find.text('Forgot password?'), findsOneWidget);
@@ -88,26 +88,27 @@ void main() {
       expect(find.text('Apple'), findsOneWidget);
     });
 
-    testWidgets('Shows validation error when signing in with empty email or short password',
+    testWidgets('Shows validation error when signing in with empty username or short password',
         (tester) async {
       await tester.pumpWidget(
         const MaterialApp(home: BloomAuthPage(initialMode: AuthMode.login)),
       );
       await tester.pump();
 
-      // Clear email and tap Sign In
+      // Clear username and tap Sign In
       await tester.enterText(find.byType(TextField).first, '');
       await tester.tap(find.text('Sign In to Bloom'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Please enter your email address'), findsOneWidget);
+      expect(find.text('Please enter your username'), findsOneWidget);
 
-      // Enter invalid email
-      await tester.enterText(find.byType(TextField).first, 'invalidemail');
+      // Enter short password (< 4 digits)
+      await tester.enterText(find.byType(TextField).first, 'maya');
+      await tester.enterText(find.byType(TextField).at(1), '12');
       await tester.tap(find.text('Sign In to Bloom'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Please enter a valid email address'), findsOneWidget);
+      expect(find.text('Password must be at least 4 digits'), findsOneWidget);
     });
 
     testWidgets('Switching to Create Profile shows signup form and password strength meter',
@@ -121,17 +122,18 @@ void main() {
       await tester.tap(find.text('Create Profile'));
       await tester.pumpAndSettle();
 
+      expect(find.text('Choose a Username'), findsOneWidget);
       expect(find.text('Full Name or Preferred Nickname'), findsOneWidget);
       expect(find.text('Create Password'), findsOneWidget);
       expect(find.text('Confirm Password'), findsOneWidget);
       expect(find.text('Continue to Profile Setup →'), findsOneWidget);
 
-      // Type password to trigger strength meter
+      // Type 4-digit password to trigger strength meter
       final passField = find.byType(TextField).at(2);
-      await tester.enterText(passField, 'test123!');
+      await tester.enterText(passField, '1234');
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('password'), findsWidgets);
+      expect(find.textContaining('4-digit'), findsWidgets);
     });
 
     testWidgets('Multi-step onboarding wizard steps through goals, cycle, and persona',
@@ -141,11 +143,11 @@ void main() {
       );
       await tester.pump();
 
-      // Fill in signup details
-      await tester.enterText(find.byType(TextField).at(0), 'Aria');
-      await tester.enterText(find.byType(TextField).at(1), 'aria@bloom.app');
-      await tester.enterText(find.byType(TextField).at(2), 'secretpass');
-      await tester.enterText(find.byType(TextField).at(3), 'secretpass');
+      // Fill in signup details: username, nickname, 4-digit pass, confirm pass
+      await tester.enterText(find.byType(TextField).at(0), 'aria_rose');
+      await tester.enterText(find.byType(TextField).at(1), 'Aria');
+      await tester.enterText(find.byType(TextField).at(2), '1234');
+      await tester.enterText(find.byType(TextField).at(3), '1234');
       await tester.pumpAndSettle();
 
       // Advance to Onboarding Wizard
@@ -200,12 +202,12 @@ void main() {
       expect(find.text('Reset Password'), findsOneWidget);
       expect(find.text('Send Recovery Code'), findsOneWidget);
 
-      await tester.enterText(find.byType(TextField).first, 'user@bloom.app');
+      await tester.enterText(find.byType(TextField).first, 'bloom_user');
       await tester.tap(find.text('Send Recovery Code'));
       await tester.pumpAndSettle();
 
-      expect(find.text('6-Digit Verification Code'), findsOneWidget);
-      expect(find.text('New Password'), findsOneWidget);
+      expect(find.text('4-Digit Verification Code'), findsOneWidget);
+      expect(find.text('New Password (4 digits or more)'), findsOneWidget);
       expect(find.text('Set New Password & Sign In'), findsOneWidget);
     });
 

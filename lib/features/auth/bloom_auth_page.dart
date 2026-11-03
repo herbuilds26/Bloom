@@ -13,7 +13,8 @@ enum AuthMode {
 }
 
 /// A comprehensive, botanical-themed authentication and profile creation screen.
-/// Includes Login, Sign Up, Multi-Step Profile Onboarding, and Password Recovery.
+/// Includes Login, Sign Up, Multi-Step Profile Onboarding, and Password Recovery
+/// with 4-digit password support and no email requirement (Firebase ready).
 class BloomAuthPage extends StatefulWidget {
   const BloomAuthPage({
     super.key,
@@ -30,15 +31,15 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   late AuthMode _mode;
 
   // Login form controllers
-  final _loginEmailController = TextEditingController();
+  final _loginUsernameController = TextEditingController();
   final _loginPasswordController = TextEditingController();
   bool _loginObscure = true;
   bool _rememberMe = true;
   String? _loginError;
 
   // Sign up form controllers
+  final _signupUsernameController = TextEditingController();
   final _signupNameController = TextEditingController();
-  final _signupEmailController = TextEditingController();
   final _signupPasswordController = TextEditingController();
   final _signupConfirmPasswordController = TextEditingController();
   bool _signupObscure = true;
@@ -46,7 +47,8 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   String? _signupError;
 
   // Onboarding wizard state
-  int _onboardingStep = 0; // 0: Goals, 1: Cycle Calibration, 2: Info & Avatar, 3: Success
+  int _onboardingStep =
+      0; // 0: Goals, 1: Cycle Calibration, 2: Info & Avatar, 3: Success
   String _selectedGoal = 'Track cycle & symptoms';
   int _cycleLength = 28;
   int _periodLength = 5;
@@ -57,7 +59,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   String _selectedAvatarId = 'coquette';
 
   // Forgot password controllers
-  final _forgotEmailController = TextEditingController();
+  final _forgotUsernameController = TextEditingController();
   final _newPasswordController = TextEditingController();
   bool _recoveryCodeSent = false;
   final _codeController = TextEditingController();
@@ -70,7 +72,8 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     super.initState();
     _mode = widget.initialMode;
     final current = AuthService.instance.currentUser.value;
-    _loginEmailController.text = current.email;
+    _loginUsernameController.text =
+        current.username.isNotEmpty ? current.username : 'bloom_user';
     _selectedAvatarId = current.avatarId;
     _age = current.age;
     _heightCm = current.heightCm;
@@ -82,13 +85,13 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
 
   @override
   void dispose() {
-    _loginEmailController.dispose();
+    _loginUsernameController.dispose();
     _loginPasswordController.dispose();
+    _signupUsernameController.dispose();
     _signupNameController.dispose();
-    _signupEmailController.dispose();
     _signupPasswordController.dispose();
     _signupConfirmPasswordController.dispose();
-    _forgotEmailController.dispose();
+    _forgotUsernameController.dispose();
     _newPasswordController.dispose();
     _codeController.dispose();
     super.dispose();
@@ -97,19 +100,19 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   // --- ACTIONS ---
 
   Future<void> _handleLogin() async {
-    final email = _loginEmailController.text.trim();
+    final username = _loginUsernameController.text.trim();
     final pass = _loginPasswordController.text.trim();
 
-    if (email.isEmpty) {
-      setState(() => _loginError = 'Please enter your email address');
-      return;
-    }
-    if (!email.contains('@')) {
-      setState(() => _loginError = 'Please enter a valid email address');
+    if (username.isEmpty) {
+      setState(() => _loginError = 'Please enter your username');
       return;
     }
     if (pass.isEmpty) {
       setState(() => _loginError = 'Please enter your password');
+      return;
+    }
+    if (pass.length < 4) {
+      setState(() => _loginError = 'Password must be at least 4 digits');
       return;
     }
 
@@ -119,7 +122,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     });
 
     final success = await AuthService.instance.login(
-      email: email,
+      username: username,
       password: pass,
     );
 
@@ -129,15 +132,16 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     if (success) {
       _navigateToHome();
     } else {
-      setState(() => _loginError = 'Invalid email or password. (Min 6 chars)');
+      setState(
+          () => _loginError = 'Invalid username or password (min 4 digits)');
     }
   }
 
   void _handleQuickDemoLogin() async {
     setState(() => _loading = true);
     await AuthService.instance.login(
-      email: 'bloom.user@bloom.app',
-      password: 'bloom123',
+      username: 'bloom_user',
+      password: '1234',
     );
     if (!mounted) return;
     setState(() => _loading = false);
@@ -145,21 +149,25 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   }
 
   void _handleSignupNext() {
+    final username = _signupUsernameController.text.trim();
     final name = _signupNameController.text.trim();
-    final email = _signupEmailController.text.trim();
     final pass = _signupPasswordController.text.trim();
     final confirm = _signupConfirmPasswordController.text.trim();
 
+    if (username.isEmpty) {
+      setState(() => _signupError = 'Please choose a username');
+      return;
+    }
+    if (username.length < 3) {
+      setState(() => _signupError = 'Username must be at least 3 characters');
+      return;
+    }
     if (name.isEmpty) {
       setState(() => _signupError = 'Please enter your name');
       return;
     }
-    if (email.isEmpty || !email.contains('@')) {
-      setState(() => _signupError = 'Please enter a valid email address');
-      return;
-    }
-    if (pass.length < 6) {
-      setState(() => _signupError = 'Password must be at least 6 characters');
+    if (pass.length < 4) {
+      setState(() => _signupError = 'Password must be at least 4 digits');
       return;
     }
     if (pass != confirm) {
@@ -181,19 +189,19 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   Future<void> _finishOnboarding() async {
     setState(() => _loading = true);
 
+    final username = _signupUsernameController.text.trim().isNotEmpty
+        ? _signupUsernameController.text.trim()
+        : 'bloom_user';
     final name = _signupNameController.text.trim().isNotEmpty
         ? _signupNameController.text.trim()
         : 'Bloom User';
-    final email = _signupEmailController.text.trim().isNotEmpty
-        ? _signupEmailController.text.trim()
-        : 'bloom.user@bloom.app';
     final pass = _signupPasswordController.text.trim().isNotEmpty
         ? _signupPasswordController.text.trim()
-        : 'bloom123';
+        : '1234';
 
     await AuthService.instance.register(
+      username: username,
       name: name,
-      email: email,
       password: pass,
       avatarId: _selectedAvatarId,
       age: _age,
@@ -210,33 +218,33 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   }
 
   void _handleForgotPassword() async {
-    final email = _forgotEmailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      setState(() => _forgotMessage = 'Please enter a valid email address');
+    final username = _forgotUsernameController.text.trim();
+    if (username.isEmpty) {
+      setState(() => _forgotMessage = 'Please enter your username');
       return;
     }
 
     setState(() => _loading = true);
-    await AuthService.instance.resetPassword(email);
+    await AuthService.instance.resetPassword(username);
     if (!mounted) return;
 
     setState(() {
       _loading = false;
       _recoveryCodeSent = true;
-      _codeController.text = '784920';
-      _forgotMessage = 'We sent a 6-digit recovery code to $email';
+      _codeController.text = '7849';
+      _forgotMessage = 'Generated recovery code 7849 for @$username';
     });
   }
 
   void _handleResetPasswordComplete() async {
     final newPass = _newPasswordController.text.trim();
-    if (newPass.length < 6) {
-      setState(() => _forgotMessage = 'New password must be at least 6 characters');
+    if (newPass.length < 4) {
+      setState(() => _forgotMessage = 'New password must be at least 4 digits');
       return;
     }
     setState(() => _loading = true);
     await AuthService.instance.login(
-      email: _forgotEmailController.text.trim(),
+      username: _forgotUsernameController.text.trim(),
       password: newPass,
     );
     if (!mounted) return;
@@ -380,22 +388,23 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
       children: [
         _buildSegmentBar(),
         const SizedBox(height: 22),
-        _buildFieldLabel('Email address'),
+        _buildFieldLabel('Username'),
         const SizedBox(height: 6),
         _buildTextField(
-          controller: _loginEmailController,
-          hint: 'you@bloom.app',
+          controller: _loginUsernameController,
+          hint: 'e.g. maya, aria_rose, chloe',
           icon: Icons.alternate_email,
-          keyboardType: TextInputType.emailAddress,
+          keyboardType: TextInputType.text,
         ),
         const SizedBox(height: 16),
         _buildFieldLabel('Password'),
         const SizedBox(height: 6),
         _buildTextField(
           controller: _loginPasswordController,
-          hint: '••••••••',
+          hint: '4-digit PIN or password',
           icon: Icons.lock_outline,
           obscureText: _loginObscure,
+          keyboardType: TextInputType.text,
           suffix: IconButton(
             icon: Icon(
               _loginObscure
@@ -520,6 +529,14 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
       children: [
         _buildSegmentBar(),
         const SizedBox(height: 22),
+        _buildFieldLabel('Choose a Username'),
+        const SizedBox(height: 6),
+        _buildTextField(
+          controller: _signupUsernameController,
+          hint: 'e.g. aria_rose, maya, chloe24',
+          icon: Icons.alternate_email,
+        ),
+        const SizedBox(height: 14),
         _buildFieldLabel('Full Name or Preferred Nickname'),
         const SizedBox(height: 6),
         _buildTextField(
@@ -528,20 +545,11 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
           icon: Icons.person_outline,
         ),
         const SizedBox(height: 14),
-        _buildFieldLabel('Email address'),
-        const SizedBox(height: 6),
-        _buildTextField(
-          controller: _signupEmailController,
-          hint: 'you@bloom.app',
-          icon: Icons.alternate_email,
-          keyboardType: TextInputType.emailAddress,
-        ),
-        const SizedBox(height: 14),
         _buildFieldLabel('Create Password'),
         const SizedBox(height: 6),
         _buildTextField(
           controller: _signupPasswordController,
-          hint: 'At least 6 characters',
+          hint: '4-digit PIN or password',
           icon: Icons.lock_outline,
           obscureText: _signupObscure,
           onChanged: (_) => setState(() {}),
@@ -563,13 +571,15 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         const SizedBox(height: 6),
         _buildTextField(
           controller: _signupConfirmPasswordController,
-          hint: 'Re-enter your password',
+          hint: 'Re-enter your 4-digit password',
           icon: Icons.lock_reset,
           obscureText: _signupObscure,
           onChanged: (_) => setState(() {}),
           suffix: _signupConfirmPasswordController.text.isNotEmpty &&
-                  _signupConfirmPasswordController.text == _signupPasswordController.text
-              ? const Icon(Icons.check_circle, size: 20, color: Color(0xFF43A047))
+                  _signupConfirmPasswordController.text ==
+                      _signupPasswordController.text
+              ? const Icon(Icons.check_circle,
+                  size: 20, color: Color(0xFF43A047))
               : null,
         ),
         const SizedBox(height: 12),
@@ -641,7 +651,9 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
             margin: const EdgeInsets.symmetric(horizontal: 3),
             height: 5,
             decoration: BoxDecoration(
-              color: active ? BloomTheme.raspberry : BloomTheme.peach.withValues(alpha: 0.5),
+              color: active
+                  ? BloomTheme.raspberry
+                  : BloomTheme.peach.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -656,22 +668,22 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
       (
         'Track cycle & symptoms',
         '🌸',
-        'Daily menstrual flow, cramps, moods and PMS tracking'
-      ),
-      (
-        'Predict ovulation & fertility',
-        '🌙',
-        'Fertile window alerts, ovulation prediction and chance ratings'
+        'Know your rhythm, predict periods, and understand daily body signals'
       ),
       (
         'Trying to conceive',
-        '💕',
-        'Conception timing, basal body temp logs and LH test tracker'
+        '✨',
+        'Pinpoint your fertile window and ovulation days with precision'
       ),
       (
-        'Hormonal wellness & balance',
+        'Track pregnancy',
+        '🍼',
+        'Week-by-week milestones, baby growth insights, and gentle care'
+      ),
+      (
+        'Perimenopause & beyond',
         '🌿',
-        'Mindful energy, skin insights and holistic cycle awareness'
+        'Navigate hormonal transitions with dignified symptom tracking'
       ),
     ];
 
@@ -689,14 +701,15 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Bloom personalizes your insights and calendar around your needs.',
+          'Bloom personalizes predictions and health insights around your journey.',
           style: TextStyle(fontSize: 12, color: BloomTheme.textSecondary),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         ...goals.map((g) {
           final selected = _selectedGoal == g.$1;
-          return GestureDetector(
+          return InkWell(
             onTap: () => setState(() => _selectedGoal = g.$1),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
@@ -799,24 +812,23 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                   Text(
                     '$_cycleLength days',
                     style: TextStyle(
-                      fontFamily: 'serif',
                       fontWeight: FontWeight.w700,
-                      fontSize: 16,
                       color: BloomTheme.raspberry,
+                      fontSize: 15,
                     ),
                   ),
                 ],
               ),
               Slider(
                 value: _cycleLength.toDouble(),
-                min: 21,
+                min: 20,
                 max: 45,
-                divisions: 24,
+                divisions: 25,
                 activeColor: BloomTheme.raspberry,
-                inactiveColor: BloomTheme.peach,
-                onChanged: (v) => setState(() => _cycleLength = v.round()),
+                inactiveColor: BloomTheme.peach.withValues(alpha: 0.5),
+                onChanged: (val) => setState(() => _cycleLength = val.round()),
               ),
-              const Divider(height: 20),
+              const Divider(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -830,10 +842,9 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                   Text(
                     '$_periodLength days',
                     style: TextStyle(
-                      fontFamily: 'serif',
                       fontWeight: FontWeight.w700,
-                      fontSize: 16,
                       color: BloomTheme.raspberry,
+                      fontSize: 15,
                     ),
                   ),
                 ],
@@ -844,85 +855,77 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                 max: 10,
                 divisions: 8,
                 activeColor: BloomTheme.raspberry,
-                inactiveColor: BloomTheme.peach,
-                onChanged: (v) => setState(() => _periodLength = v.round()),
+                inactiveColor: BloomTheme.peach.withValues(alpha: 0.5),
+                onChanged: (val) => setState(() => _periodLength = val.round()),
               ),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: BloomTheme.peach),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Last Period Started',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: BloomTheme.plum),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_lastPeriodDate.day}/${_lastPeriodDate.month}/${_lastPeriodDate.year}',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: BloomTheme.raspberry),
-                    ),
-                  ],
-                ),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.calendar_month, size: 18),
-                label: const Text('Change Date'),
-                style: TextButton.styleFrom(
-                  foregroundColor: BloomTheme.raspberry,
-                ),
-                onPressed: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: _lastPeriodDate,
-                    firstDate: DateTime.now().subtract(const Duration(days: 90)),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    setState(() => _lastPeriodDate = picked);
-                  }
-                },
-              ),
-            ],
-          ),
+        Text(
+          'When did your last period begin?',
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600, color: BloomTheme.plum),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: BorderSide(color: BloomTheme.peach),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _lastPeriodDate,
+              firstDate: DateTime.now().subtract(const Duration(days: 90)),
+              lastDate: DateTime.now(),
+              builder: (ctx, child) => Theme(
+                data: Theme.of(ctx).copyWith(
+                  colorScheme: ColorScheme.light(
+                    primary: BloomTheme.raspberry,
+                    onPrimary: Colors.white,
+                    surface: Colors.white,
+                    onSurface: BloomTheme.plum,
                   ),
                 ),
-                onPressed: () => setState(() => _onboardingStep = 0),
-                child: const Text('Back'),
+                child: child!,
               ),
+            );
+            if (picked != null) setState(() => _lastPeriodDate = picked);
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: BloomTheme.peach),
             ),
-            const SizedBox(width: 12),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today_outlined,
+                    size: 18, color: BloomTheme.raspberry),
+                const SizedBox(width: 12),
+                Text(
+                  '${_lastPeriodDate.day} ${_monthName(_lastPeriodDate.month)} ${_lastPeriodDate.year}',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: BloomTheme.plum),
+                ),
+                const Spacer(),
+                Text('Change',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: BloomTheme.raspberry,
+                        fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            OutlinedButton(
+              onPressed: () => setState(() => _onboardingStep = 0),
+              child: const Text('Back'),
+            ),
+            const SizedBox(width: 10),
             Expanded(
-              flex: 2,
               child: _buildPrimaryButton(
                 label: 'Next: Personal Info →',
                 onPressed: () => setState(() => _onboardingStep = 2),
@@ -934,10 +937,8 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     );
   }
 
-  // Step 2: Persona & Avatar
+  // Step 2: Persona & Biometrics
   Widget _buildStepPersona() {
-    final avatar = GirlyPopGallery.get(_selectedAvatarId);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -952,126 +953,89 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Select your favorite aesthetic avatar for your Bloom profile.',
+          'Choose your aesthetic persona and physical baseline metrics.',
           style: TextStyle(fontSize: 12, color: BloomTheme.textSecondary),
         ),
         const SizedBox(height: 14),
-        Center(
-          child: Column(
-            children: [
-              GirlyPopAvatar(
-                avatarId: _selectedAvatarId,
-                size: 72,
-                showEditBadge: false,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${avatar.name} · ${avatar.tagline}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: BloomTheme.plum,
-                ),
-              ),
-              Text(
-                avatar.vibe,
-                style: TextStyle(fontSize: 11, color: BloomTheme.raspberry),
-              ),
-            ],
-          ),
+        Text(
+          'Select your aesthetic avatar',
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, color: BloomTheme.plum),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 68,
+          height: 84,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: GirlyPopGallery.characters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final char = GirlyPopGallery.characters[index];
-              final isSel = char.id == _selectedAvatarId;
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (ctx, i) {
+              final av = GirlyPopGallery.characters[i];
+              final selected = _selectedAvatarId == av.id;
               return GestureDetector(
-                onTap: () => setState(() => _selectedAvatarId = char.id),
+                onTap: () => setState(() => _selectedAvatarId = av.id),
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
+                    color: selected ? BloomTheme.blush : Colors.white,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSel ? BloomTheme.raspberry : Colors.transparent,
-                      width: 2.2,
+                      color: selected
+                          ? BloomTheme.raspberry
+                          : BloomTheme.peach.withValues(alpha: 0.5),
+                      width: selected ? 2.4 : 1.0,
                     ),
                   ),
-                  child: GirlyPopAvatar(
-                    avatarId: char.id,
-                    size: 50,
-                  ),
+                  child: GirlyPopAvatar(avatarId: av.id, size: 54),
                 ),
               );
             },
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _buildNumberInput(
                 label: 'Age',
                 value: '$_age yrs',
-                onDecrement: () => setState(() {
-                  if (_age > 12) _age--;
-                }),
-                onIncrement: () => setState(() {
-                  if (_age < 75) _age++;
-                }),
+                onDecrement: () => setState(() => _age = (_age - 1).clamp(12, 70)),
+                onIncrement: () => setState(() => _age = (_age + 1).clamp(12, 70)),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: _buildNumberInput(
                 label: 'Height',
                 value: '${_heightCm.toInt()} cm',
-                onDecrement: () => setState(() {
-                  if (_heightCm > 120) _heightCm -= 1;
-                }),
-                onIncrement: () => setState(() {
-                  if (_heightCm < 210) _heightCm += 1;
-                }),
+                onDecrement: () => setState(
+                    () => _heightCm = (_heightCm - 1).clamp(100.0, 220.0)),
+                onIncrement: () => setState(
+                    () => _heightCm = (_heightCm + 1).clamp(100.0, 220.0)),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: _buildNumberInput(
                 label: 'Weight',
                 value: '${_weightKg.toInt()} kg',
-                onDecrement: () => setState(() {
-                  if (_weightKg > 35) _weightKg -= 1;
-                }),
-                onIncrement: () => setState(() {
-                  if (_weightKg < 180) _weightKg += 1;
-                }),
+                onDecrement: () => setState(
+                    () => _weightKg = (_weightKg - 1).clamp(30.0, 180.0)),
+                onIncrement: () => setState(
+                    () => _weightKg = (_weightKg + 1).clamp(30.0, 180.0)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         Row(
           children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: BorderSide(color: BloomTheme.peach),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () => setState(() => _onboardingStep = 1),
-                child: const Text('Back'),
-              ),
+            OutlinedButton(
+              onPressed: () => setState(() => _onboardingStep = 1),
+              child: const Text('Back'),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
-              flex: 2,
               child: _buildPrimaryButton(
                 label: 'Review Profile →',
                 onPressed: () => setState(() => _onboardingStep = 3),
@@ -1086,17 +1050,19 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
   // Step 3: Success Celebration
   Widget _buildStepSuccess() {
     final avatar = GirlyPopGallery.get(_selectedAvatarId);
+    final username = _signupUsernameController.text.trim().isNotEmpty
+        ? _signupUsernameController.text.trim()
+        : 'bloom_user';
     final name = _signupNameController.text.trim().isNotEmpty
         ? _signupNameController.text.trim()
         : 'Bloom User';
 
     return Column(
       children: [
-        const LivingLily(size: 68, showStem: false, glow: true),
-        const SizedBox(height: 10),
+        const Text('🌸', style: TextStyle(fontSize: 48)),
+        const SizedBox(height: 6),
         Text(
-          'Your Bloom Profile is Ready! 🌸',
-          textAlign: TextAlign.center,
+          'Your Bloom Profile is Ready!',
           style: TextStyle(
             fontFamily: 'serif',
             fontSize: 20,
@@ -1104,13 +1070,13 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
             color: BloomTheme.plum,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
-          'Welcome to your private wellness sanctuary, $name.',
+          'Your credentials and preferences are securely saved.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: BloomTheme.textSecondary),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 18),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -1138,11 +1104,11 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                           ),
                         ),
                         Text(
-                          _signupEmailController.text.trim().isNotEmpty
-                              ? _signupEmailController.text.trim()
-                              : 'bloom.user@bloom.app',
+                          '@$username',
                           style: TextStyle(
-                              fontSize: 11, color: BloomTheme.textSecondary),
+                              fontSize: 12,
+                              color: BloomTheme.raspberry,
+                              fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -1166,11 +1132,14 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                 ],
               ),
               const Divider(height: 22),
+              _buildSummaryRow('Username', '@$username'),
               _buildSummaryRow('Goal', _selectedGoal),
+              _buildSummaryRow('Cycle Baseline',
+                  '$_cycleLength days · $_periodLength days flow'),
+              _buildSummaryRow('Personal',
+                  '$_age yrs · ${_heightCm.toInt()} cm · ${_weightKg.toInt()} kg'),
               _buildSummaryRow(
-                  'Cycle Baseline', '$_cycleLength days · $_periodLength days flow'),
-              _buildSummaryRow('Personal', '$_age yrs · ${_heightCm.toInt()} cm · ${_weightKg.toInt()} kg'),
-              _buildSummaryRow('Data Security', '🔒 Stored privately on device'),
+                  'Auth & Security', '🔥 Firebase Ready · 4-Digit Password'),
             ],
           ),
         ),
@@ -1178,7 +1147,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         _buildPrimaryButton(
           label: 'Enter Bloom Dashboard',
           onPressed: _loading ? null : _finishOnboarding,
-          icon: Icons.spa_rounded,
+          icon: Icons.check_circle_outline,
         ),
       ],
     );
@@ -1211,34 +1180,34 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Enter your registered email address to receive your recovery code.',
+          'Enter your Bloom username to generate a 4-digit verification code.',
           style: TextStyle(fontSize: 12, color: BloomTheme.textSecondary),
         ),
         const SizedBox(height: 16),
-        _buildFieldLabel('Email address'),
+        _buildFieldLabel('Username'),
         const SizedBox(height: 6),
         _buildTextField(
-          controller: _forgotEmailController,
-          hint: 'you@bloom.app',
+          controller: _forgotUsernameController,
+          hint: 'e.g. maya, aria_rose',
           icon: Icons.alternate_email,
-          keyboardType: TextInputType.emailAddress,
+          keyboardType: TextInputType.text,
         ),
         if (_recoveryCodeSent) ...[
           const SizedBox(height: 16),
-          _buildFieldLabel('6-Digit Verification Code'),
+          _buildFieldLabel('4-Digit Verification Code'),
           const SizedBox(height: 6),
           _buildTextField(
             controller: _codeController,
-            hint: '784920',
+            hint: '7849',
             icon: Icons.pin_outlined,
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 16),
-          _buildFieldLabel('New Password'),
+          _buildFieldLabel('New Password (4 digits or more)'),
           const SizedBox(height: 6),
           _buildTextField(
             controller: _newPasswordController,
-            hint: 'At least 6 characters',
+            hint: 'Enter your new 4-digit password',
             icon: Icons.lock_outline,
             obscureText: true,
           ),
@@ -1263,7 +1232,9 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         ],
         const SizedBox(height: 20),
         _buildPrimaryButton(
-          label: _recoveryCodeSent ? 'Set New Password & Sign In' : 'Send Recovery Code',
+          label: _recoveryCodeSent
+              ? 'Set New Password & Sign In'
+              : 'Send Recovery Code',
           onPressed: _loading
               ? null
               : _recoveryCodeSent
@@ -1293,7 +1264,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: BloomTheme.peach.withValues(alpha: 0.25),
+        color: BloomTheme.peach.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -1480,7 +1451,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
               ),
               if (icon != null) ...[
                 const SizedBox(width: 8),
-                Icon(icon, color: Colors.white, size: 18),
+                Icon(icon, size: 18, color: Colors.white),
               ],
             ],
           ),
@@ -1549,15 +1520,15 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
     switch (strength) {
       case 1:
         color = const Color(0xFFEF5350);
-        text = 'Weak password';
+        text = 'At least 4 digits';
         break;
       case 2:
-        color = const Color(0xFFFFA726);
-        text = 'Moderate';
+        color = const Color(0xFF43A047);
+        text = 'Valid 4-digit PIN / password ✓';
         break;
       case 3:
-        color = const Color(0xFF66BB6A);
-        text = 'Strong password';
+        color = const Color(0xFF2E7D32);
+        text = 'Good password ✓';
         break;
       case 4:
         color = BloomTheme.raspberry;
@@ -1565,7 +1536,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         break;
       default:
         color = BloomTheme.peach;
-        text = 'Use at least 6 characters';
+        text = '4 digits or more';
     }
 
     return Column(
@@ -1579,7 +1550,8 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
                 margin: const EdgeInsets.symmetric(horizontal: 2),
                 height: 4,
                 decoration: BoxDecoration(
-                  color: active ? color : BloomTheme.peach.withValues(alpha: 0.3),
+                  color:
+                      active ? color : BloomTheme.peach.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1597,11 +1569,10 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
 
   int _calculatePasswordStrength(String pass) {
     if (pass.isEmpty) return 0;
-    if (pass.length < 6) return 1;
-    int score = 1;
-    if (pass.length >= 8) score++;
-    if (RegExp(r'[0-9]').hasMatch(pass)) score++;
-    if (RegExp(r'[!@#\$&*~]').hasMatch(pass)) score++;
+    if (pass.length < 4) return 1;
+    int score = 2; // 4 digits is valid and good!
+    if (pass.length >= 6) score++;
+    if (pass.length >= 8 && RegExp(r'[!@#\$&*~]').hasMatch(pass)) score++;
     return score.clamp(1, 4);
   }
 
@@ -1727,7 +1698,7 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
           Icon(Icons.shield_outlined, size: 16, color: BloomTheme.plum),
           const SizedBox(width: 6),
           Text(
-            '100% Private · Zero data selling · Stored on device',
+            'Firebase Ready · 4-Digit Password · 100% Private',
             style: TextStyle(
               fontSize: 11,
               color: BloomTheme.textSecondary,
@@ -1737,5 +1708,24 @@ class _BloomAuthPageState extends State<BloomAuthPage> {
         ],
       ),
     );
+  }
+
+  String _monthName(int month) {
+    const names = [
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return names[month.clamp(1, 12)];
   }
 }

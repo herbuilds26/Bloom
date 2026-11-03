@@ -3,6 +3,7 @@ import 'dart:convert';
 /// Domain model representing a user's credentials, account details,
 /// and personal tracking preferences.
 class UserProfile {
+  final String username;
   final String name;
   final String email;
   final String avatarId;
@@ -16,6 +17,7 @@ class UserProfile {
   final bool isLoggedIn;
 
   const UserProfile({
+    required this.username,
     required this.name,
     required this.email,
     required this.avatarId,
@@ -29,10 +31,12 @@ class UserProfile {
     required this.isLoggedIn,
   });
 
-  /// Default baseline profile so existing data and tests work seamlessly.
-  factory UserProfile.defaultUser() => UserProfile(
+  /// Default baseline profile. Starts unauthenticated so users see the
+  /// login/sign-in page before entering the app.
+  factory UserProfile.defaultUser({bool isLoggedIn = false}) => UserProfile(
+        username: 'bloom_user',
         name: 'Bloom User',
-        email: 'bloom.user@bloom.app',
+        email: 'bloom_user@bloom.app',
         avatarId: 'coquette',
         age: 24,
         heightCm: 165.0,
@@ -41,10 +45,11 @@ class UserProfile {
         usualCycleLength: 28,
         usualPeriodLength: 5,
         memberSince: DateTime(2026, 1, 1),
-        isLoggedIn: true,
+        isLoggedIn: isLoggedIn,
       );
 
   UserProfile copyWith({
+    String? username,
     String? name,
     String? email,
     String? avatarId,
@@ -58,6 +63,7 @@ class UserProfile {
     bool? isLoggedIn,
   }) {
     return UserProfile(
+      username: username ?? this.username,
       name: name ?? this.name,
       email: email ?? this.email,
       avatarId: avatarId ?? this.avatarId,
@@ -73,6 +79,7 @@ class UserProfile {
   }
 
   Map<String, dynamic> toMap() => {
+        'username': username,
         'name': name,
         'email': email,
         'avatarId': avatarId,
@@ -86,23 +93,30 @@ class UserProfile {
         'isLoggedIn': isLoggedIn,
       };
 
-  factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
-        name: map['name'] as String? ?? 'Bloom User',
-        email: map['email'] as String? ?? 'bloom.user@bloom.app',
-        avatarId: map['avatarId'] as String? ?? 'coquette',
-        age: (map['age'] as num?)?.toInt() ?? 24,
-        heightCm: (map['heightCm'] as num?)?.toDouble() ?? 165.0,
-        weightKg: (map['weightKg'] as num?)?.toDouble() ?? 58.0,
-        trackingGoal:
-            map['trackingGoal'] as String? ?? 'Track menstrual cycle',
-        usualCycleLength:
-            (map['usualCycleLength'] as num?)?.toInt() ?? 28,
-        usualPeriodLength:
-            (map['usualPeriodLength'] as num?)?.toInt() ?? 5,
-        memberSince: DateTime.tryParse(map['memberSince'] as String? ?? '') ??
-            DateTime(2026, 1, 1),
-        isLoggedIn: map['isLoggedIn'] as bool? ?? true,
-      );
+  factory UserProfile.fromMap(Map<String, dynamic> map) {
+    final rawEmail = map['email'] as String? ?? 'bloom_user@bloom.app';
+    final rawUsername = map['username'] as String? ??
+        rawEmail.split('@').first;
+
+    return UserProfile(
+      username: rawUsername.isNotEmpty ? rawUsername : 'bloom_user',
+      name: map['name'] as String? ?? 'Bloom User',
+      email: rawEmail,
+      avatarId: map['avatarId'] as String? ?? 'coquette',
+      age: (map['age'] as num?)?.toInt() ?? 24,
+      heightCm: (map['heightCm'] as num?)?.toDouble() ?? 165.0,
+      weightKg: (map['weightKg'] as num?)?.toDouble() ?? 58.0,
+      trackingGoal:
+          map['trackingGoal'] as String? ?? 'Track menstrual cycle',
+      usualCycleLength:
+          (map['usualCycleLength'] as num?)?.toInt() ?? 28,
+      usualPeriodLength:
+          (map['usualPeriodLength'] as num?)?.toInt() ?? 5,
+      memberSince: DateTime.tryParse(map['memberSince'] as String? ?? '') ??
+          DateTime(2026, 1, 1),
+      isLoggedIn: map['isLoggedIn'] as bool? ?? false,
+    );
+  }
 
   String toJson() => jsonEncode(toMap());
 
