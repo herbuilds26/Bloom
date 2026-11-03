@@ -8,9 +8,11 @@ import '../../app/bloom_splash.dart';
 import '../../app/theme.dart';
 import '../../domain/cycle_calculator.dart';
 import '../../widgets/girly_pop_avatar.dart';
+import '../../app/assistant_avatar.dart';
 import '../auth/auth_service.dart';
 import '../auth/bloom_auth_page.dart';
 import '../auth/user_profile.dart';
+import '../partner/partner_sync_service.dart';
 import 'home_art.dart';
 
 class BloomHome extends StatefulWidget {
@@ -74,23 +76,24 @@ class _BloomHomeState extends State<BloomHome> {
   ];
 
   // Profile settings state
-  String userName = 'Bloom User';
-  String userHandle = 'bloom_user';
-  String userEmail = 'bloom.user@bloom.app';
-  int userAge = 24;
-  double userHeightCm = 165.0;
-  double userWeightKg = 58.0;
+  String userName = '';
+  String userHandle = '';
+  String userEmail = '';
+  int userAge = 0;
+  double userHeightCm = 0.0;
+  double userWeightKg = 0.0;
   String cycleGoal = 'Track menstrual cycle';
   String userAvatarId = 'coquette';
 
+  bool isCycleConfigured = false;
   int usualCycleLength = 28;
   int usualPeriodLength = 5;
   int lutealPhaseLength = 14;
 
-  bool reminderPeriod = true;
+  bool reminderPeriod = false;
   int reminderDaysBefore = 2;
-  bool reminderFertile = true;
-  bool reminderDaily = true;
+  bool reminderFertile = false;
+  bool reminderDaily = false;
   TimeOfDay reminderTime = const TimeOfDay(hour: 20, minute: 0);
 
   String selectedPalette = 'Rose Bloom';
@@ -105,7 +108,26 @@ class _BloomHomeState extends State<BloomHome> {
     super.initState();
     _syncUserProfile(AuthService.instance.currentUser.value);
     AuthService.instance.currentUser.addListener(_onProfileChanged);
+    _syncPartnerState();
+    PartnerSyncService.instance.isConnected.addListener(_onPartnerChanged);
+    PartnerSyncService.instance.partnerStatus.addListener(_onPartnerChanged);
     _initAssistantChat();
+  }
+
+  void _onPartnerChanged() {
+    if (!mounted) return;
+    setState(() {
+      _syncPartnerState();
+    });
+  }
+
+  void _syncPartnerState() {
+    partnerCode = PartnerSyncService.instance.myPartnerCode.value.isNotEmpty
+        ? PartnerSyncService.instance.myPartnerCode.value
+        : 'BLOOM-7K92';
+    partnerConnected = PartnerSyncService.instance.isConnected.value;
+    connectedPartnerCode =
+        PartnerSyncService.instance.partnerStatus.value?.partnerCode;
   }
 
   void _onProfileChanged() {
@@ -117,20 +139,25 @@ class _BloomHomeState extends State<BloomHome> {
 
   void _syncUserProfile(UserProfile user) {
     userName = user.name;
-    userHandle = user.username.isNotEmpty ? user.username : 'bloom_user';
+    userHandle = user.username;
     userEmail = user.email;
     userAge = user.age;
     userHeightCm = user.heightCm;
     userWeightKg = user.weightKg;
     cycleGoal = user.trackingGoal;
     userAvatarId = user.avatarId;
-    usualCycleLength = user.usualCycleLength;
-    usualPeriodLength = user.usualPeriodLength;
+    if (user.usualCycleLength > 0 && user.usualPeriodLength > 0) {
+      usualCycleLength = user.usualCycleLength;
+      usualPeriodLength = user.usualPeriodLength;
+      isCycleConfigured = true;
+    }
   }
 
   @override
   void dispose() {
     AuthService.instance.currentUser.removeListener(_onProfileChanged);
+    PartnerSyncService.instance.isConnected.removeListener(_onPartnerChanged);
+    PartnerSyncService.instance.partnerStatus.removeListener(_onPartnerChanged);
     _assistantInputController.dispose();
     _assistantScrollController.dispose();
     super.dispose();
@@ -2666,9 +2693,17 @@ class _BloomHomeState extends State<BloomHome> {
   // --- BLOOM FOR PARTNERS (IMAGE 4) ---
   Widget _partnerBannerCard() {
     final e = estimate;
-    final dayText = e.cycleDay != null
-        ? 'Cycle day ${e.cycleDay} · ${_phaseLabel(e)}'
-        : 'Cycle in progress';
+    final partner = PartnerSyncService.instance.partnerStatus.value;
+    final isLinked = partnerConnected && partner != null;
+    final dayText = isLinked
+        ? 'Cycle day ${partner.cycleDay} · ${partner.phaseLabel}'
+        : (e.cycleDay != null
+            ? 'Cycle day ${e.cycleDay} · ${_phaseLabel(e)}'
+            : 'Cycle in progress');
+    final headline = isLinked
+        ? _partnerStatusCareHeadline(partner)
+        : _partnerCareHeadline(e);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(16),
@@ -2720,7 +2755,7 @@ class _BloomHomeState extends State<BloomHome> {
                     ),
                     Text(
                       partnerConnected
-                          ? 'Connected ($connectedPartnerCode) · $dayText'
+                          ? 'Connected (${partner?.nickname ?? connectedPartnerCode}) · $dayText'
                           : 'Share your cycle code & care guides',
                       style: TextStyle(
                         fontSize: 12,
@@ -2757,7 +2792,7 @@ class _BloomHomeState extends State<BloomHome> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _partnerCareHeadline(e),
+                    headline,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -2771,6 +2806,18 @@ class _BloomHomeState extends State<BloomHome> {
         ],
       ),
     );
+  }
+
+  String _partnerStatusCareHeadline(PartnerStatus p) {
+    if (p.cycleDay <= 5) {
+      return "Ask if ${p.nickname} would like a hot-water bottle for cramps";
+    } else if (p.cycleDay >= 12 && p.cycleDay <= 16) {
+      return "${p.nickname}'s energy & glow are peak today · Plan romantic quality time";
+    } else if (p.cycleDay > 20) {
+      return "Pre-menstrual comfort for ${p.nickname} · Bring warm tea and offer reassurance";
+    } else {
+      return "${p.nickname}'s energy is rising · Great day for an active date together";
+    }
   }
 
   String _partnerCareHeadline(CycleEstimate e) {
@@ -2830,6 +2877,8 @@ class _BloomHomeState extends State<BloomHome> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) {
           final e = estimate;
+          final partner = PartnerSyncService.instance.partnerStatus.value;
+          final isLinked = PartnerSyncService.instance.isConnected.value && partner != null;
           return DraggableScrollableSheet(
             initialChildSize: 0.92,
             maxChildSize: 0.96,
@@ -2857,11 +2906,7 @@ class _BloomHomeState extends State<BloomHome> {
                     IconButton(
                       tooltip: 'Share invite',
                       icon: Icon(Icons.share_outlined, color: BloomTheme.plum),
-                      onPressed: () {
-                        Share.share(
-                          'Connect with me on Bloom! Use my partner code: $partnerCode to see my cycle status and care tips.',
-                        );
-                      },
+                      onPressed: () => PartnerSyncService.instance.shareMyCode(),
                     ),
                   ],
                 ),
@@ -2886,7 +2931,9 @@ class _BloomHomeState extends State<BloomHome> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              partnerConnected ? 'Connected with Partner ❤️' : 'Ready to get even closer?',
+                              partnerConnected
+                                  ? 'Connected with ${partner?.nickname ?? "Partner"} ❤️'
+                                  : 'Ready to get even closer?',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
@@ -2912,6 +2959,215 @@ class _BloomHomeState extends State<BloomHome> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Connected Partner Live Status Card
+                if (isLinked) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 20),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFF0F5), Colors.white],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                          color: BloomTheme.raspberry.withValues(alpha: 0.3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: BloomTheme.plum.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: BloomTheme.raspberry
+                                    .withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Icon(Icons.favorite,
+                                    color: BloomTheme.raspberry, size: 20),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "${partner.nickname}'s Live Status",
+                                    style: TextStyle(
+                                      fontFamily: 'serif',
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: BloomTheme.plum,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Code: ${partner.partnerCode} · Synced live',
+                                    style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: BloomTheme.textSecondary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: const Color(0xFFA5D6A7)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle,
+                                      size: 12, color: Color(0xFF2E7D32)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Active',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2E7D32),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: BloomTheme.peach.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Cycle Day ${partner.cycleDay} · ${partner.phaseLabel}',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: BloomTheme.plum,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          _partnerStatusCareHeadline(partner),
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: BloomTheme.plum,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Her logged symptoms & mood today:",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: BloomTheme.textSecondary),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (partner.mood != null)
+                              Chip(
+                                avatar: const Icon(Icons.mood,
+                                    size: 14, color: Color(0xFF9C27B0)),
+                                label: Text(partner.mood!,
+                                    style: const TextStyle(fontSize: 11)),
+                                backgroundColor: const Color(0xFFF3E5F5),
+                              ),
+                            ...partner.symptoms.map(
+                              (s) => Chip(
+                                avatar: Icon(Icons.spa,
+                                    size: 14, color: BloomTheme.raspberry),
+                                label: Text(s,
+                                    style: const TextStyle(fontSize: 11)),
+                                backgroundColor: const Color(0xFFFDE8ED),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "Quick Care Actions for Her:",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: BloomTheme.raspberry),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.favorite_border,
+                                    size: 15),
+                                label: const Text('Check In',
+                                    style: TextStyle(fontSize: 11.5)),
+                                onPressed: () =>
+                                    PartnerSyncService.instance.sendCareMessage(
+                                  CareInteractionType.checkIn,
+                                  partnerName: partner.nickname,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.water_drop_outlined,
+                                    size: 15),
+                                label: const Text('Water',
+                                    style: TextStyle(fontSize: 11.5)),
+                                onPressed: () =>
+                                    PartnerSyncService.instance.sendCareMessage(
+                                  CareInteractionType.water,
+                                  partnerName: partner.nickname,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.cake_outlined, size: 15),
+                                label: const Text('Hug 🍫',
+                                    style: TextStyle(fontSize: 11.5)),
+                                onPressed: () =>
+                                    PartnerSyncService.instance.sendCareMessage(
+                                  CareInteractionType.chocolateHug,
+                                  partnerName: partner.nickname,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 Text(
                   'What your partner sees',
                   style: TextStyle(
@@ -3052,11 +3308,7 @@ class _BloomHomeState extends State<BloomHome> {
                             child: OutlinedButton.icon(
                               icon: const Icon(Icons.chat_bubble_outline, size: 16),
                               label: const Text('Send check-in', style: TextStyle(fontSize: 12)),
-                              onPressed: () {
-                                Share.share(
-                                  'Hey love, thinking of you! Let me know if you need a hot water bottle, warm tea, or anything cozy ❤️',
-                                );
-                              },
+                              onPressed: () => PartnerSyncService.instance.sendCareMessage(CareInteractionType.checkIn),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -3064,9 +3316,7 @@ class _BloomHomeState extends State<BloomHome> {
                             child: OutlinedButton.icon(
                               icon: const Icon(Icons.water_drop_outlined, size: 16),
                               label: const Text('Remind water', style: TextStyle(fontSize: 12)),
-                              onPressed: () {
-                                Share.share('Gentle reminder to sip some water today, stay hydrated love! 💧');
-                              },
+                              onPressed: () => PartnerSyncService.instance.sendCareMessage(CareInteractionType.water),
                             ),
                           ),
                         ],
@@ -3130,11 +3380,7 @@ class _BloomHomeState extends State<BloomHome> {
                           backgroundColor: BloomTheme.raspberry,
                           minimumSize: const Size.fromHeight(44),
                         ),
-                        onPressed: () {
-                          Share.share(
-                            'Connect with me on Bloom! Use my partner code: $partnerCode to see my cycle status and care tips.',
-                          );
-                        },
+                        onPressed: () => PartnerSyncService.instance.shareMyCode(),
                       ),
                       const SizedBox(height: 12),
                       TextButton.icon(
@@ -3144,11 +3390,7 @@ class _BloomHomeState extends State<BloomHome> {
                             : "Enter partner's code to connect"),
                         onPressed: () {
                           if (partnerConnected) {
-                            setState(() {
-                              partnerConnected = false;
-                              connectedPartnerCode = null;
-                            });
-                            update(() {});
+                            _confirmDisconnectPartner(update);
                           } else {
                             _showEnterPartnerCodeDialog(update);
                           }
@@ -3165,56 +3407,142 @@ class _BloomHomeState extends State<BloomHome> {
     );
   }
 
-  void _showEnterPartnerCodeDialog(void Function(void Function()) parentUpdate) {
-    final controller = TextEditingController();
+  void _confirmDisconnectPartner(void Function(void Function()) parentUpdate) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Enter Partner Code'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Enter the 6-character Bloom code shared by your partner to connect your cycles.',
-              style: TextStyle(fontSize: 13, color: BloomTheme.textSecondary),
+      builder: (dCtx) => AlertDialog(
+        title: const Text('Disconnect Partner?'),
+        content: Text(
+          'Are you sure you want to disconnect from $connectedPartnerCode? You will stop seeing each other\'s live cycle updates.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD32F2F),
+              foregroundColor: Colors.white,
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: 'e.g. BLOOM-7K92',
-                filled: true,
-                fillColor: BloomTheme.ivory,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            onPressed: () async {
+              Navigator.pop(dCtx);
+              await PartnerSyncService.instance.disconnectPartner();
+              _syncPartnerState();
+              setState(() {});
+              parentUpdate(() {});
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Partner disconnected.')),
+              );
+            },
+            child: const Text('Disconnect'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEnterPartnerCodeDialog(void Function(void Function()) parentUpdate) {
+    final codeCtrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    String? errorText;
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (builderCtx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: Row(
+            children: [
+              Icon(Icons.favorite, color: BloomTheme.raspberry),
+              const SizedBox(width: 8),
+              const Text('Enter Partner Code'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Enter the 6-character Bloom code shared by your partner to connect your cycles.',
+                style: TextStyle(fontSize: 13, color: BloomTheme.textSecondary),
               ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  labelText: 'Partner Code',
+                  hintText: 'e.g. BLOOM-7K92',
+                  filled: true,
+                  fillColor: BloomTheme.ivory,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: nameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: "Partner's Name (Optional)",
+                  hintText: 'e.g. Maya or Alex',
+                  filled: true,
+                  fillColor: BloomTheme.ivory,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              if (errorText != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  errorText!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFD32F2F),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: BloomTheme.raspberry),
+              onPressed: () async {
+                final code = codeCtrl.text.trim();
+                final name = nameCtrl.text.trim();
+                try {
+                  await PartnerSyncService.instance.connectPartner(
+                    code: code,
+                    nickname: name.isNotEmpty ? name : null,
+                  );
+                  _syncPartnerState();
+                  setState(() {});
+                  parentUpdate(() {});
+                  if (dialogCtx.mounted) Navigator.of(dialogCtx, rootNavigator: true).pop();
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Connected with partner code $code!'),
+                      backgroundColor: BloomTheme.plum,
+                    ),
+                  );
+                } catch (e) {
+                  setDialogState(() {
+                    errorText = e is ArgumentError
+                        ? e.message.toString()
+                        : e.toString();
+                  });
+                }
+              },
+              child: const Text('Connect'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: BloomTheme.raspberry),
-            onPressed: () {
-              final code = controller.text.trim();
-              if (code.isNotEmpty) {
-                setState(() {
-                  partnerConnected = true;
-                  connectedPartnerCode = code;
-                });
-                parentUpdate(() {});
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Connected with partner code $code!'),
-                    backgroundColor: BloomTheme.plum,
-                  ),
-                );
-              }
-            },
-            child: const Text('Connect'),
-          ),
-        ],
       ),
     );
   }
@@ -3250,18 +3578,9 @@ class _BloomHomeState extends State<BloomHome> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFFFF0F3), Color(0xFFFDE8ED)],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(Icons.spa, color: BloomTheme.raspberry, size: 22),
-                ),
+              const BloomAssistantAvatar(
+                size: 46,
+                showOnlineBadge: true,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -3361,37 +3680,47 @@ class _BloomHomeState extends State<BloomHome> {
                 _assistantMessages.length + (_assistantTyping ? 1 : 0),
             itemBuilder: (ctx, idx) {
               if (idx == _assistantMessages.length && _assistantTyping) {
-                return Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                          color: BloomTheme.peach.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: BloomTheme.raspberry),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const BloomAssistantAvatar(
+                        size: 28,
+                        showOnlineBadge: false,
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                              color: BloomTheme.peach.withValues(alpha: 0.4)),
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Bloom is typing...',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: BloomTheme.textSecondary,
-                              fontStyle: FontStyle.italic),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: BloomTheme.raspberry),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Bloom is typing...',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: BloomTheme.textSecondary,
+                                  fontStyle: FontStyle.italic),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               }
@@ -3399,48 +3728,62 @@ class _BloomHomeState extends State<BloomHome> {
               final msg = _assistantMessages[idx];
               final isUser = msg.isUser;
 
-              return Align(
-                alignment:
-                    isUser ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(ctx).size.width * 0.82,
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: isUser ? BloomTheme.raspberry : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
-                      bottomLeft: Radius.circular(isUser ? 18 : 4),
-                      bottomRight: Radius.circular(isUser ? 4 : 18),
-                    ),
-                    border: isUser
-                        ? null
-                        : Border.all(
-                            color: BloomTheme.peach.withValues(alpha: 0.5),
-                            width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: BloomTheme.plum
-                            .withValues(alpha: isUser ? 0.08 : 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment:
+                      isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!isUser) ...[
+                      const BloomAssistantAvatar(
+                        size: 30,
+                        showOnlineBadge: false,
                       ),
+                      const SizedBox(width: 8),
                     ],
-                  ),
-                  child: Text(
-                    msg.text,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      height: 1.4,
-                      color: isUser ? Colors.white : BloomTheme.plum,
-                      fontWeight:
-                          isUser ? FontWeight.w500 : FontWeight.normal,
+                    Flexible(
+                      child: Container(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(ctx).size.width * 0.76,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: isUser ? BloomTheme.raspberry : Colors.white,
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(18),
+                            topRight: const Radius.circular(18),
+                            bottomLeft: Radius.circular(isUser ? 18 : 4),
+                            bottomRight: Radius.circular(isUser ? 4 : 18),
+                          ),
+                          border: isUser
+                              ? null
+                              : Border.all(
+                                  color: BloomTheme.peach.withValues(alpha: 0.5),
+                                  width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: BloomTheme.plum
+                                  .withValues(alpha: isUser ? 0.08 : 0.04),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          msg.text,
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            height: 1.4,
+                            color: isUser ? Colors.white : BloomTheme.plum,
+                            fontWeight:
+                                isUser ? FontWeight.w500 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               );
             },
@@ -3693,14 +4036,19 @@ class _BloomHomeState extends State<BloomHome> {
         q.contains('my age') ||
         q.contains('my height') ||
         q.contains('my weight')) {
+      final ageStr = userAge > 0 ? '$userAge years' : 'Not set yet';
+      final heightStr = userHeightCm > 0 ? '${userHeightCm.toInt()} cm' : 'Not set yet';
+      final weightStr = userWeightKg > 0 ? '${userWeightKg.toInt()} kg' : 'Not set yet';
+      final cycleStr = isCycleConfigured ? '$usualCycleLength days' : 'Not calibrated yet';
+      final periodStr = isCycleConfigured ? '$usualPeriodLength days' : 'Not calibrated yet';
       return "👤 **Your Personal Profile**:\n\n"
-          "• Name: $userName\n"
-          "• Age: $userAge years\n"
-          "• Height: ${userHeightCm.toInt()} cm\n"
-          "• Weight: ${userWeightKg.toInt()} kg\n"
+          "• Name: ${userName.isNotEmpty ? userName : 'Bloom User'}\n"
+          "• Age: $ageStr\n"
+          "• Height: $heightStr\n"
+          "• Weight: $weightStr\n"
           "• Tracking Goal: $cycleGoal\n"
-          "• Usual Cycle Length: $usualCycleLength days\n"
-          "• Usual Period Duration: $usualPeriodLength days\n\n"
+          "• Usual Cycle Length: $cycleStr\n"
+          "• Usual Period Duration: $periodStr\n\n"
           "You can update any of these anytime in your Profile tab under 'Personal information'!";
     }
 
@@ -4226,7 +4574,7 @@ class _BloomHomeState extends State<BloomHome> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      userName,
+                      userName.isNotEmpty ? userName : 'Bloom User',
                       style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 18,
@@ -4245,7 +4593,9 @@ class _BloomHomeState extends State<BloomHome> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '@$userHandle · $userEmail',
+                      userHandle.isNotEmpty
+                          ? '@$userHandle${userEmail.isNotEmpty ? " · $userEmail" : ""}'
+                          : (userEmail.isNotEmpty ? userEmail : 'Tap below to set up your account credentials'),
                       style: TextStyle(
                         fontSize: 11,
                         color: BloomTheme.textSecondary,
@@ -4269,26 +4619,32 @@ class _BloomHomeState extends State<BloomHome> {
           _profileTile(
             Icons.manage_accounts_outlined,
             'Account & Credentials',
-            '$userEmail · Password, security & login',
+            userHandle.isNotEmpty
+                ? '@$userHandle · 4-digit PIN & login'
+                : 'Not set · Tap to set username & password',
             _openAccountSettings,
           ),
           _profileTile(
             Icons.person_outline,
             'Personal information',
-            '$userAge yrs · ${userHeightCm.toInt()} cm · ${userWeightKg.toInt()} kg · $cycleGoal',
+            (userAge > 0 || userHeightCm > 0 || userWeightKg > 0)
+                ? '${userAge > 0 ? "$userAge yrs" : "Age not set"} · ${userHeightCm > 0 ? "${userHeightCm.toInt()} cm" : "Height not set"} · ${userWeightKg > 0 ? "${userWeightKg.toInt()} kg" : "Weight not set"}'
+                : 'Not set · Tap to add age, height & weight',
             _openPersonalInfo,
           ),
           _profileTile(
               Icons.tune,
               'Cycle settings',
-              'Usual cycle ($usualCycleLength d) & period ($usualPeriodLength d)',
+              isCycleConfigured
+                  ? 'Calibrated: $usualCycleLength d cycle · $usualPeriodLength d period'
+                  : 'Not calibrated · Tap to set your cycle & flow duration',
               _openCycleSettings),
           _profileTile(
               Icons.notifications_none,
               'Reminders',
-              reminderPeriod
-                  ? 'Period, fertile & daily alerts active'
-                  : 'Notifications customized',
+              (reminderPeriod || reminderFertile || reminderDaily)
+                  ? 'Active · Alerts configured'
+                  : 'Off · Turn on to receive alerts',
               _openReminders),
           _profileTile(Icons.palette_outlined, 'Appearance',
               '$selectedPalette · Bloom light palette', _openAppearance),
@@ -4365,7 +4721,7 @@ class _BloomHomeState extends State<BloomHome> {
           onTap: action);
 
   void _openAccountSettings() {
-    final emailCtrl = TextEditingController(text: userEmail);
+    final usernameCtrl = TextEditingController(text: userHandle);
     final oldPassCtrl = TextEditingController();
     final newPassCtrl = TextEditingController();
     var isChangingPass = false;
@@ -4434,7 +4790,7 @@ class _BloomHomeState extends State<BloomHome> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            userName,
+                            userName.isNotEmpty ? userName : 'Bloom User',
                             style: TextStyle(
                               fontFamily: 'serif',
                               fontWeight: FontWeight.w700,
@@ -4443,7 +4799,7 @@ class _BloomHomeState extends State<BloomHome> {
                             ),
                           ),
                           Text(
-                            '@$userHandle · $userEmail',
+                            userHandle.isNotEmpty ? '@$userHandle' : 'No username set',
                             style: TextStyle(
                               fontSize: 12,
                               color: BloomTheme.textSecondary,
@@ -4465,7 +4821,7 @@ class _BloomHomeState extends State<BloomHome> {
                 ),
               ),
               const SizedBox(height: 16),
-              // Email credential
+              // Username credential
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
@@ -4475,28 +4831,26 @@ class _BloomHomeState extends State<BloomHome> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.alternate_email, size: 20, color: BloomTheme.raspberry),
+                    Icon(Icons.person_outline, size: 20, color: BloomTheme.raspberry),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        controller: emailCtrl,
+                        controller: usernameCtrl,
                         decoration: const InputDecoration(
-                          labelText: 'Account Email',
+                          labelText: 'Username (no email needed)',
+                          hintText: 'e.g. bloom_girl',
                           border: InputBorder.none,
                           isDense: true,
                         ),
+                        onSubmitted: (newHandle) {
+                          final h = newHandle.trim();
+                          if (h.isNotEmpty) {
+                            setState(() => userHandle = h);
+                            AuthService.instance.updateProfile(username: h);
+                            setModalState(() => statusMessage = 'Username updated successfully');
+                          }
+                        },
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        final newEmail = emailCtrl.text.trim();
-                        if (newEmail.contains('@')) {
-                          setState(() => userEmail = newEmail);
-                          AuthService.instance.updateProfile(email: newEmail);
-                          setModalState(() => statusMessage = 'Email updated successfully');
-                        }
-                      },
-                      child: const Text('Update'),
                     ),
                   ],
                 ),
@@ -4542,8 +4896,11 @@ class _BloomHomeState extends State<BloomHome> {
                       TextField(
                         controller: newPassCtrl,
                         obscureText: true,
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
                         decoration: const InputDecoration(
-                          labelText: 'New Password (min 6 chars)',
+                          labelText: 'New 4-digit Password / PIN',
+                          counterText: '',
                           isDense: true,
                         ),
                       ),
@@ -4562,14 +4919,14 @@ class _BloomHomeState extends State<BloomHome> {
                               foregroundColor: Colors.white,
                             ),
                             onPressed: () {
-                              if (newPassCtrl.text.length >= 4) {
+                              if (newPassCtrl.text.length == 4) {
                                 setModalState(() {
                                   isChangingPass = false;
-                                  statusMessage = 'Password updated securely';
+                                  statusMessage = '4-digit PIN updated securely';
                                 });
                               }
                             },
-                            child: const Text('Save Password'),
+                            child: const Text('Save PIN'),
                           ),
                         ],
                       ),
@@ -4663,7 +5020,9 @@ class _BloomHomeState extends State<BloomHome> {
   }
 
   void _openPersonalInfo() {
-    final ageCtrl = TextEditingController(text: userAge.toString());
+    final ageCtrl = TextEditingController(
+      text: userAge > 0 ? userAge.toString() : '',
+    );
     final heightCtrl = TextEditingController(
       text: userHeightCm > 0
           ? (userHeightCm == userHeightCm.roundToDouble()
@@ -4820,9 +5179,12 @@ class _BloomHomeState extends State<BloomHome> {
                   FilledButton(
                     onPressed: () {
                       setState(() {
-                        userAge = int.tryParse(ageCtrl.text.trim()) ?? userAge;
-                        userHeightCm = double.tryParse(heightCtrl.text.trim()) ?? userHeightCm;
-                        userWeightKg = double.tryParse(weightCtrl.text.trim()) ?? userWeightKg;
+                        final parsedAge = int.tryParse(ageCtrl.text.trim());
+                        final parsedHeight = double.tryParse(heightCtrl.text.trim());
+                        final parsedWeight = double.tryParse(weightCtrl.text.trim());
+                        userAge = parsedAge ?? (ageCtrl.text.trim().isEmpty ? 0 : userAge);
+                        userHeightCm = parsedHeight ?? (heightCtrl.text.trim().isEmpty ? 0.0 : userHeightCm);
+                        userWeightKg = parsedWeight ?? (weightCtrl.text.trim().isEmpty ? 0.0 : userWeightKg);
                         cycleGoal = tempGoal;
                       });
                       AuthService.instance.updateProfile(
@@ -5177,6 +5539,7 @@ class _BloomHomeState extends State<BloomHome> {
                   FilledButton(
                     onPressed: () {
                       setState(() {
+                        isCycleConfigured = true;
                         usualCycleLength = tempCycle.round();
                         usualPeriodLength = tempPeriod.round();
                         lutealPhaseLength = tempLuteal.round();
@@ -5882,19 +6245,7 @@ class _BloomHomeState extends State<BloomHome> {
                 onPressed: () => Navigator.pop(ctx),
               ),
             ),
-            Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFFFFF0F3), Color(0xFFFDE8ED)],
-                ),
-              ),
-              child: Center(
-                child: Icon(Icons.spa, size: 36, color: BloomTheme.raspberry),
-              ),
-            ),
+            const BloomAssistantAvatar(size: 72),
             const SizedBox(height: 12),
             Text(
               'Bloom',
@@ -6029,3 +6380,4 @@ class _BloomHomeState extends State<BloomHome> {
         'Sunday'
       ][(w - 1) % 7];
 }
+

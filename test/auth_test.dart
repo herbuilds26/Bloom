@@ -222,7 +222,7 @@ void main() {
 
       // Account & Credentials tile is visible
       expect(find.text('Account & Credentials'), findsOneWidget);
-      expect(find.textContaining('bloom.user@bloom.app'), findsWidgets);
+      expect(find.textContaining('bloom_user'), findsWidgets);
 
       // Tap Account & Credentials
       await tester.tap(find.text('Account & Credentials'));

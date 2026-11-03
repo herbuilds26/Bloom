@@ -30,70 +30,75 @@ class BloomPalette {
     Color? highContrastPlum,
     Color? highContrastTextSecondary,
   })  : highContrastPlum = highContrastPlum ?? const Color(0xFF1F0D15),
-        highContrastTextSecondary = highContrastTextSecondary ?? const Color(0xFF3B1E29);
+        highContrastTextSecondary =
+            highContrastTextSecondary ?? const Color(0xFF3B1E29);
 
+  // 1. Signature Stargazer Lily: Exact plum, velvet rose, petal pink and lime throat from the animation
   static const roseBloom = BloomPalette(
     name: 'Rose Bloom',
-    description: 'Natural plum, raspberry and peach tones',
-    plum: Color(0xFF5D3140),
-    raspberry: Color(0xFFCF4173),
-    rose: Color(0xFFF39399),
-    peach: Color(0xFFF6D8BD),
-    ivory: Color(0xFFFDF8F5),
-    textSecondary: Color(0xFF8A5D6B),
-    blush: Color(0xFFFCECE5),
-    sage: Color(0xFFE9EEDC),
-    surfaceMuted: Color(0xFFFAF1EB),
-    highContrastPlum: Color(0xFF2E121E),
-    highContrastTextSecondary: Color(0xFF4C2735),
+    description: 'Signature Stargazer Lily · Royal plum, velvet rose & petal blush',
+    plum: Color(0xFF542565),
+    raspberry: Color(0xFFD03873),
+    rose: Color(0xFFEA578B),
+    peach: Color(0xFFFFDDE8),
+    ivory: Color(0xFFFFF7FA),
+    textSecondary: Color(0xFF754483),
+    blush: Color(0xFFF9EAF2),
+    sage: Color(0xFFDCEAB2),
+    surfaceMuted: Color(0xFFF6E8F2),
+    highContrastPlum: Color(0xFF32103F),
+    highContrastTextSecondary: Color(0xFF4A1F57),
   );
 
+  // 2. Tiger Lily: Warm golden pollen amber, sunset lily rose and soft leaf sage
   static const warmBlossom = BloomPalette(
     name: 'Warm Blossom',
-    description: 'Soft coral, blush pink, and honey cream',
-    plum: Color(0xFF572A24),
-    raspberry: Color(0xFFD9534F),
-    rose: Color(0xFFF29580),
-    peach: Color(0xFFFCE2CE),
-    ivory: Color(0xFFFFFDF9),
-    textSecondary: Color(0xFF8C5549),
-    blush: Color(0xFFFDF0E7),
-    sage: Color(0xFFEAEEDB),
-    surfaceMuted: Color(0xFFF8EDE5),
-    highContrastPlum: Color(0xFF2C110E),
-    highContrastTextSecondary: Color(0xFF4D2820),
+    description: 'Tiger Lily · Warm amber, golden pollen & velvet rose',
+    plum: Color(0xFF56283C),
+    raspberry: Color(0xFFD84A70),
+    rose: Color(0xFFE88A6E),
+    peach: Color(0xFFFFE0CF),
+    ivory: Color(0xFFFFFDF8),
+    textSecondary: Color(0xFF884E25),
+    blush: Color(0xFFFFF0E6),
+    sage: Color(0xFFDCE3BF),
+    surfaceMuted: Color(0xFFFDF1EB),
+    highContrastPlum: Color(0xFF361022),
+    highContrastTextSecondary: Color(0xFF562134),
   );
 
+  // 3. Water Lily: Serene twilight violet, lilac mist and aquatic lily pad
   static const lavenderDusk = BloomPalette(
     name: 'Lavender Dusk',
-    description: 'Serene violet, soft mauve, and lilac',
-    plum: Color(0xFF38254C),
-    raspberry: Color(0xFF854FB5),
-    rose: Color(0xFFB38DD9),
-    peach: Color(0xFFE5D8F6),
-    ivory: Color(0xFFFAF7FD),
-    textSecondary: Color(0xFF67507F),
-    blush: Color(0xFFF2ECFA),
-    sage: Color(0xFFDFE6D5),
-    surfaceMuted: Color(0xFFF0E8F8),
-    highContrastPlum: Color(0xFF1E102E),
-    highContrastTextSecondary: Color(0xFF3B2651),
+    description: 'Water Lily · Twilight violet, lilac mist & soft plum',
+    plum: Color(0xFF421E5C),
+    raspberry: Color(0xFFA64A9D),
+    rose: Color(0xFFC778BE),
+    peach: Color(0xFFEBD4F7),
+    ivory: Color(0xFFFAF6FD),
+    textSecondary: Color(0xFF6B4785),
+    blush: Color(0xFFF3E7FB),
+    sage: Color(0xFFD3E0CB),
+    surfaceMuted: Color(0xFFF1E4FA),
+    highContrastPlum: Color(0xFF240B38),
+    highContrastTextSecondary: Color(0xFF42195E),
   );
 
+  // 4. Lily Garden: Botanical stem olive, calyx lime, and delicate bud rose
   static const sageMeadow = BloomPalette(
     name: 'Sage Meadow',
-    description: 'Fresh botanical jade, eucalyptus, and mint',
-    plum: Color(0xFF213A2E),
-    raspberry: Color(0xFF338A63),
-    rose: Color(0xFF73BD98),
-    peach: Color(0xFFD3EADE),
-    ivory: Color(0xFFF7FAF8),
-    textSecondary: Color(0xFF4A6B5B),
-    blush: Color(0xFFEBF5EE),
-    sage: Color(0xFFC8E2CB),
-    surfaceMuted: Color(0xFFE8F2EC),
-    highContrastPlum: Color(0xFF0F2119),
-    highContrastTextSecondary: Color(0xFF274436),
+    description: 'Lily Garden · Botanical calyx green, stem sage & rose',
+    plum: Color(0xFF402242),
+    raspberry: Color(0xFFC43872),
+    rose: Color(0xFFE86F98),
+    peach: Color(0xFFE5ECCF),
+    ivory: Color(0xFFFBFDF9),
+    textSecondary: Color(0xFF637648),
+    blush: Color(0xFFF2F7EC),
+    sage: Color(0xFFD4E3B7),
+    surfaceMuted: Color(0xFFEDF4E6),
+    highContrastPlum: Color(0xFF260E28),
+    highContrastTextSecondary: Color(0xFF3F1942),
   );
 
   static const List<BloomPalette> all = [
@@ -148,77 +153,80 @@ abstract final class BloomTheme {
       primary: dark ? rose : raspberry,
       onPrimary: Colors.white,
       primaryContainer: dark ? plum : blush,
-      onPrimaryContainer: dark ? blush : plum,
-      secondary: dark ? peach : rose,
-      onSecondary: dark ? plum : Colors.white,
-      secondaryContainer:
-          dark ? const Color(0xFF452B33) : peach.withValues(alpha: 0.35),
-      onSecondaryContainer: dark ? peach : plum,
-      tertiary: dark ? sage : raspberry,
-      onTertiary: Colors.white,
-      surface: dark ? const Color(0xFF22161A) : ivory,
-      onSurface: dark ? const Color(0xFFF8EDE6) : plum,
-      onSurfaceVariant: dark ? const Color(0xFFD4B4BC) : textSecondary,
-      surfaceContainerHighest: dark ? const Color(0xFF332328) : surfaceMuted,
-      outline: dark ? const Color(0xFF9E7C85) : peach,
-      outlineVariant: dark ? const Color(0xFF523D44) : peach.withValues(alpha: 0.5),
+      onPrimaryContainer: dark ? peach : plum,
+      secondary: rose,
+      onSecondary: Colors.white,
       error: const Color(0xFFBA1A1A),
       onError: Colors.white,
+      surface: dark ? plum : ivory,
+      onSurface: dark ? peach : plum,
+      surfaceDim: dark ? _current.highContrastPlum : surfaceMuted,
+      surfaceBright: dark ? plum : Colors.white,
+      outline: peach,
+      outlineVariant: dark ? textSecondary : peach,
     );
+
     return ThemeData(
       useMaterial3: true,
+      brightness: brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: dark ? plum : ivory,
+      fontFamily: 'sans-serif',
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
-        foregroundColor: dark ? Colors.white : plum,
+        backgroundColor: dark ? plum : ivory,
+        foregroundColor: dark ? peach : plum,
         elevation: 0,
-        centerTitle: false,
+        centerTitle: true,
       ),
-      textTheme: ThemeData(brightness: brightness)
-          .textTheme
-          .apply(
-            bodyColor: dark ? const Color(0xFFF7EDF8) : plum,
-            displayColor: dark ? const Color(0xFFF7EDF8) : plum,
-          )
-          .copyWith(
-            headlineLarge: const TextStyle(
-                fontFamily: 'serif', fontSize: 32, fontWeight: FontWeight.w500),
-            headlineMedium: const TextStyle(
-                fontFamily: 'serif', fontSize: 25, fontWeight: FontWeight.w500),
-          ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: dark ? plum : Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: dark ? plum : Colors.white,
+      ),
       cardTheme: CardThemeData(
-        color:
-            dark ? const Color(0xFF2E1F24) : Colors.white.withValues(alpha: .94),
-        elevation: dark ? 0 : 1,
-        shadowColor: plum.withValues(alpha: .06),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: peach.withValues(alpha: .45)),
+        color: dark ? plum : Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: raspberry,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: dark ? const Color(0xFF2E1F24) : Colors.white,
-        indicatorColor: blush,
-        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
-              color: states.contains(WidgetState.selected)
-                  ? raspberry
-                  : textSecondary,
-            )),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
-              fontSize: 11,
-              color: states.contains(WidgetState.selected)
-                  ? raspberry
-                  : textSecondary,
-              fontWeight: states.contains(WidgetState.selected)
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-            )),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: raspberry,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: raspberry,
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: plum,
+          side: BorderSide(color: peach),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: raspberry),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: raspberry,
+        thumbColor: raspberry,
+        inactiveTrackColor: peach.withValues(alpha: 0.5),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? Colors.white : textSecondary,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? raspberry : peach,
+        ),
       ),
     );
   }
